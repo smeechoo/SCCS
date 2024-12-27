@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="sccs:jar">
+    <output-path>$USER_HOME$/Desktop/SMEECH        CORE/CHESTSHOPS/SCCS/PRIVATE 1</output-path>
+    <root id="archive" name="sccs.jar">
+      <element id="module-output" name="sccs" />
+    </root>
+  </artifact>
+</component>

@@ -1,0 +1,6 @@
+name: SmeechCoreChestShops
+version: '1.1-SNAPSHOT'
+main: me.smeechcorechestshopplugin.smeechCoreChestShops.SmeechCoreChestShops
+api-version: '1.21'
+authors: [ smeechoo ]
+description: Allows the creation of Chest Shops
