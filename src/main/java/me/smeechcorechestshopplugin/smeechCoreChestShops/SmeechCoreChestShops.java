@@ -104,7 +104,7 @@ public final class SmeechCoreChestShops extends JavaPlugin implements Listener {
                 player.sendMessage("You are the shop owner. You can access the chest.");
                 player.openInventory(chestInventory);
             } else {
-                handlePurchase(player, chestInventory, costMaterial, price);
+                handlePurchase(player, chestInventory, costMaterial, price, event);
             }
         }
     }
@@ -118,15 +118,19 @@ public final class SmeechCoreChestShops extends JavaPlugin implements Listener {
         }
     }
 
-    private void handlePurchase(Player buyer, Inventory chestInventory, Material costMaterial, int price) {
+    private void handlePurchase(Player buyer, Inventory chestInventory, Material costMaterial, int price, PlayerInteractEvent event) {
         Inventory buyerInventory = buyer.getInventory();
         ItemStack costItem = new ItemStack(costMaterial, price);
+
+        // Block the buyer from taking an item without purchasing
+        event.setCancelled(true); // Cancel the default chest interaction
 
         if (!buyerInventory.containsAtLeast(costItem, price)) {
             buyer.sendMessage("You do not have enough " + costMaterial.name() + " to make this purchase.");
             return;
         }
 
+        // Check if the item is available in the shop
         ItemStack purchasedItem = chestInventory.getItem(0); // Get the first available item
         if (purchasedItem == null || purchasedItem.getAmount() < 1) {
             buyer.sendMessage("The shop is out of stock.");
