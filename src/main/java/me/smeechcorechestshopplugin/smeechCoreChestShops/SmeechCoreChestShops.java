@@ -18,46 +18,43 @@ public final class SmeechCoreChestShops extends JavaPlugin implements Listener {
 
     @Override
     public void onEnable() {
-        getLogger().info("Smeechcorechestshop Plugin Enabled");
+        saveDefaultConfig(); // Load or create the configuration file
+        getLogger().info("SmeechCoreChestShops Plugin Enabled");
         getServer().getPluginManager().registerEvents(this, this);
     }
 
     @Override
     public void onDisable() {
-        getLogger().info("Smeechcorechestshop Plugin Disabled");
+        getLogger().info("SmeechCoreChestShops Plugin Disabled");
     }
 
     // Event for creating the shop chest using a sign
     @EventHandler
     public void onSignChange(SignChangeEvent event) {
-        String[] lines = event.getLines(); // Use array to handle all lines at once
+        String[] lines = event.getLines();
 
-        // Check if the sign contains [PRICE]
         if ("[PRICE]".equalsIgnoreCase(lines[0])) {
             Player player = event.getPlayer();
             try {
-                // Parse the price from line 2
-                int price = Integer.parseInt(lines[1]);
+                int price = Integer.parseInt(lines[1]); // Parse price from line 2
                 if (price <= 0 || price > 64) {
-                    player.sendMessage("Invalid price. Price must be between 1 and 64.");
+                    player.sendMessage(getConfig().getString("messages.invalid-sign", "Invalid price. Price must be between 1 and 64."));
                     event.setCancelled(true);
                     return;
                 }
 
-                // Get the item cost from line 3
-                Material costMaterial = Material.matchMaterial(lines[2]);
+                Material costMaterial = Material.matchMaterial(lines[2]); // Parse material from line 3
                 if (costMaterial == null) {
-                    player.sendMessage("Invalid item specified on line 3.");
+                    player.sendMessage(getConfig().getString("messages.invalid-sign", "Invalid item specified on line 3."));
                     event.setCancelled(true);
                     return;
                 }
 
-                // Set up the sign
-                event.setLine(0, "[PRICE]");  // Set the first line to [PRICE] without color code
-                event.setLine(3, player.getName());  // Set the shop owner
-                player.sendMessage("Shop chest successfully created!");
+                event.setLine(0, "[PRICE]"); // Set the first line to [PRICE] without color code
+                event.setLine(3, player.getName()); // Set the shop owner
+                player.sendMessage(getConfig().getString("messages.shop-created", "Shop chest successfully created!"));
             } catch (NumberFormatException e) {
-                event.getPlayer().sendMessage("Invalid number for price. Please enter a valid number.");
+                event.getPlayer().sendMessage(getConfig().getString("messages.invalid-sign", "Invalid number for price. Please enter a valid number."));
                 event.setCancelled(true);
             }
         }
@@ -67,25 +64,20 @@ public final class SmeechCoreChestShops extends JavaPlugin implements Listener {
     @EventHandler
     public void onPlayerInteract(PlayerInteractEvent event) {
         Block clickedBlock = event.getClickedBlock();
-        if (clickedBlock == null) return; // Ensure block is not null
+        if (clickedBlock == null || clickedBlock.getType() != Material.CHEST) return;
 
-        // Ensure the clicked block is a chest
-        if (clickedBlock.getType() == Material.CHEST) {
-            // Check all sides of the chest for a sign
-            for (BlockFace face : BlockFace.values()) {
-                if (face == BlockFace.UP || face == BlockFace.DOWN) continue; // Skip top and bottom
-                Block relativeBlock = clickedBlock.getRelative(face);
-                if (relativeBlock.getState() instanceof Sign sign) {
-                    handleShopInteraction(event, clickedBlock, sign);
-                    return;
-                }
+        for (BlockFace face : BlockFace.values()) {
+            if (face == BlockFace.UP || face == BlockFace.DOWN) continue; // Skip top and bottom
+            Block relativeBlock = clickedBlock.getRelative(face);
+            if (relativeBlock.getState() instanceof Sign sign) {
+                handleShopInteraction(event, clickedBlock, sign);
+                return;
             }
         }
     }
 
     private void handleShopInteraction(PlayerInteractEvent event, Block chestBlock, Sign sign) {
-        String[] lines = sign.getLines(); // Get sign lines as an array
-
+        String[] lines = sign.getLines();
         if ("[PRICE]".equalsIgnoreCase(lines[0])) {
             String owner = lines[3];
             int price = parsePrice(lines[1], event.getPlayer());
@@ -104,7 +96,7 @@ public final class SmeechCoreChestShops extends JavaPlugin implements Listener {
                 player.sendMessage("You are the shop owner. You can access the chest.");
                 player.openInventory(chestInventory);
             } else {
-                handlePurchase(player, chestInventory, costMaterial, price, event);
+                handlePurchase(player, chestInventory, costMaterial, price);
             }
         }
     }
@@ -113,27 +105,23 @@ public final class SmeechCoreChestShops extends JavaPlugin implements Listener {
         try {
             return Integer.parseInt(priceString);
         } catch (NumberFormatException e) {
-            player.sendMessage("Invalid price on the sign.");
+            player.sendMessage(getConfig().getString("messages.invalid-sign", "Invalid price on the sign."));
             return -1; // Return -1 to indicate failure
         }
     }
 
-    private void handlePurchase(Player buyer, Inventory chestInventory, Material costMaterial, int price, PlayerInteractEvent event) {
+    private void handlePurchase(Player buyer, Inventory chestInventory, Material costMaterial, int price) {
         Inventory buyerInventory = buyer.getInventory();
         ItemStack costItem = new ItemStack(costMaterial, price);
 
-        // Block the buyer from taking an item without purchasing
-        event.setCancelled(true); // Cancel the default chest interaction
-
         if (!buyerInventory.containsAtLeast(costItem, price)) {
-            buyer.sendMessage("You do not have enough " + costMaterial.name() + " to make this purchase.");
+            buyer.sendMessage(getConfig().getString("messages.not-enough-currency", "You do not have enough " + costMaterial.name() + " to make this purchase.").replace("%currency%", costMaterial.name()));
             return;
         }
 
-        // Check if the item is available in the shop
         ItemStack purchasedItem = chestInventory.getItem(0); // Get the first available item
         if (purchasedItem == null || purchasedItem.getAmount() < 1) {
-            buyer.sendMessage("The shop is out of stock.");
+            buyer.sendMessage(getConfig().getString("messages.shop-out-of-stock", "This shop is out of stock."));
             return;
         }
 
@@ -141,6 +129,9 @@ public final class SmeechCoreChestShops extends JavaPlugin implements Listener {
         buyerInventory.removeItem(costItem); // Remove cost items from buyer
         chestInventory.removeItem(purchasedItem); // Remove purchased item from chest
         buyer.getInventory().addItem(purchasedItem); // Add purchased item to buyer
-        buyer.sendMessage("You successfully purchased " + purchasedItem.getType().name() + " for " + price + " " + costMaterial.name() + "!");
+        buyer.sendMessage(getConfig().getString("messages.purchase-successful", "You successfully purchased %item% for %price% %currency%!")
+                .replace("%item%", purchasedItem.getType().name())
+                .replace("%price%", String.valueOf(price))
+                .replace("%currency%", costMaterial.name()));
     }
 }
